@@ -13,7 +13,7 @@ Controller-free movement and interaction for WebXR hand tracking in [A-Frame](ht
 Gestures don't compete with each other. Pinching only teleports; grabbing uses the whole hand; a thumb tap is never mistaken for a pinch; and the ray steps aside when your hand is at something it could press or grab. Hand-shape checks are measured relative to your palm, so they work for any hand size.
 
 One file, no dependencies besides A-Frame.
-
+**Try it in a headset:** [minimal example](https://jorim-m.github.io/aframe-hand-interaction/examples/minimal.html) · [playground](https://jorim-m.github.io/aframe-hand-interaction/examples/playground.html)
 ---
 
 ## Quick start
@@ -21,7 +21,6 @@ One file, no dependencies besides A-Frame.
 ```html
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/Jorim-M/aframe-hand-interaction@v2.6.0/dist/aframe-hand-interaction.min.js"></script>
-**Try it in a headset:** [minimal example](https://jorim-m.github.io/aframe-hand-interaction/examples/minimal.html) · [playground](https://jorim-m.github.io/aframe-hand-interaction/examples/playground.html)
 
 <a-scene>
   <a-entity hand-interaction>
