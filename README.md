@@ -18,6 +18,27 @@ One file, no dependencies besides A-Frame.
 
 ---
 
+## Install
+
+From a CDN, with no build step:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/aframe-hand-interaction@2.6.0/dist/aframe-hand-interaction.min.js"></script>
+```
+
+Or from npm, for a bundler:
+
+```
+npm install aframe-hand-interaction
+```
+
+```js
+import 'aframe';
+import 'aframe-hand-interaction';
+```
+
+---
+
 ## Quick start
 
 ```html
