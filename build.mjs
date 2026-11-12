@@ -6,7 +6,6 @@
 // 00-header.js sits outside it (licence comment + AFRAME check).
 import fs from 'fs';
 import path from 'path';
-import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -28,9 +27,9 @@ if (process.argv.includes('--check')) {
 fs.mkdirSync(path.dirname(dist), { recursive: true });
 fs.writeFileSync(dist, out);
 new Function(out);                       // syntax check
-const terser = path.join(root, 'node_modules', '.bin', 'terser');
-execFileSync(fs.existsSync(terser) ? terser : 'npx', [
-  ...(fs.existsSync(terser) ? [] : ['--yes', 'terser']),
-  dist, '-c', '-m', '--comments', '/^!/', '-o', dist.replace(/\.js$/, '.min.js'),
-], { stdio: 'inherit' });
+// terser's JavaScript API rather than its command-line script, which
+// can't be spawned directly on Windows
+const { minify } = await import('terser');
+const min = await minify(out, { compress: true, mangle: true, format: { comments: /^!/ } });
+fs.writeFileSync(dist.replace(/\.js$/, '.min.js'), min.code);
 console.log('built v' + pkg.version + ': ' + files.length + ' source files → dist/');
