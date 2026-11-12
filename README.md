@@ -20,7 +20,8 @@ One file, no dependencies besides A-Frame.
 
 ```html
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
-<script src="aframe-hand-interaction.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Jorim-M/aframe-hand-interaction@v2.6.0/dist/aframe-hand-interaction.min.js"></script>
+**Try it in a headset:** [minimal example](https://jorim-m.github.io/aframe-hand-interaction/examples/minimal.html) · [playground](https://jorim-m.github.io/aframe-hand-interaction/examples/playground.html)
 
 <a-scene>
   <a-entity hand-interaction>
