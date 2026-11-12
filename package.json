@@ -1,0 +1,46 @@
+{
+  "name": "aframe-hand-interaction",
+  "version": "2.6.0",
+  "description": "Controller-free movement and interaction for WebXR hand tracking in A-Frame: teleport, snap-turn, point-to-select, fingertip press, whole-hand grab, recordable poses, and a guided tutorial.",
+  "main": "dist/aframe-hand-interaction.js",
+  "unpkg": "dist/aframe-hand-interaction.min.js",
+  "jsdelivr": "dist/aframe-hand-interaction.min.js",
+  "files": [
+    "dist/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node build.mjs --check && node test/run.mjs",
+    "prepublishOnly": "npm run build && node test/run.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jorim-M/aframe-hand-interaction.git"
+  },
+  "homepage": "https://github.com/Jorim-M/aframe-hand-interaction#readme",
+  "bugs": {
+    "url": "https://github.com/Jorim-M/aframe-hand-interaction/issues"
+  },
+  "keywords": [
+    "aframe",
+    "aframe-component",
+    "webxr",
+    "hand-tracking",
+    "vr",
+    "teleport",
+    "snap-turn",
+    "hands"
+  ],
+  "author": "Jorim M. Oduo (Beamport Story Labs)",
+  "license": "MIT",
+  "peerDependencies": {
+    "aframe": ">=1.7.0"
+  },
+  "devDependencies": {
+    "terser": "^5.31.0",
+    "three": "0.173.0"
+  }
+}

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>aframe-hand-interaction: minimal</title>
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+  <script src="../dist/aframe-hand-interaction.min.js"></script>
+</head>
+<body>
+  <!-- In VR with hand tracking: pinch with your left hand to teleport,
+       tap your right thumb on your curled index to switch turning on
+       and then thumbs-up + tilt, point and curl your finger at the red
+       box, press it with a fingertip, close your hand around the cubes. -->
+  <a-scene renderer="foveationLevel: 0" cursor="rayOrigin: mouse" raycaster="objects: .interactable">
+    <a-entity hand-interaction="tutorial: true">
+      <a-entity camera position="0 1.6 0" look-controls wasd-controls></a-entity>
+    </a-entity>
+
+    <a-sky color="#cfe3ee"></a-sky>
+    <a-entity light="type: hemisphere; color: #ffffff; groundColor: #8a8f99; intensity: 2"></a-entity>
+    <a-plane class="landable" rotation="-90 0 0" width="40" height="40" color="#9fb39a"></a-plane>
+    <a-box class="landable" position="3 0.25 -5" width="2" height="0.5" depth="2" color="#c8c2b4"></a-box>
+
+    <a-box class="interactable" position="0 1.5 -4" color="#c8465f"
+           animation__click="property: rotation; to: 0 360 0; dur: 600; startEvents: click"></a-box>
+
+    <a-box position="0 0.4 -0.9" width="0.8" height="0.8" depth="0.4" color="#d9d9de"></a-box>
+    <a-box class="grabbable" position="-0.15 0.845 -0.85" width="0.09" height="0.09" depth="0.09" color="#d6a531"></a-box>
+    <a-box class="grabbable" position="0.15 0.845 -0.85" width="0.09" height="0.09" depth="0.09" color="#3f6fc8"></a-box>
+  </a-scene>
+</body>
+</html>

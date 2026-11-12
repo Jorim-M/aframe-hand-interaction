@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hand Interaction Playground</title>
+
+<script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.7.0/dist/aframe-extras.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/aframe-environment-component@1.5.0/dist/aframe-environment-component.min.js"></script>
+<script src="../dist/aframe-hand-interaction.min.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// HAND INTERACTION PLAYGROUND — minimal
+// aframe-environment-component's default preset for the world,
+// plus one small set of
+// things to try each gesture on:
+//   teleport  ground, two platforms; the pool and the steep slab
+//             turn the arc red
+//   turn      thumb tap on the curled index, then thumbs-up + tilt
+//   point     three orbs past the pool, and a crate to drag
+//   poke      push-buttons and a brightness slider on the table
+//   poses     Record a hand shape (right hand), then both hands
+//             report when they make it
+//   grab      blocks on the table: open hand, close it round one
+//   wrist     turn your left palm toward your face: a small menu
+//             (turning on/off, restart tutorial) appears on the wrist
+// URL options: ?debug=1  ?tutorial=reset
+// ═══════════════════════════════════════════════════════════
+
+// Orb: point + trigger toggles its glow
+AFRAME.registerComponent('toggle-glow', {
+  init: function () {
+    this.on = false;
+    this.el.addEventListener('click', () => {
+      this.on = !this.on;
+      this.el.setAttribute('material', 'emissive', this.on ? '#ff9a1f' : '#000000');
+    });
+  }
+});
+
+// Button action: counts or changes the lamp colour. The buttons
+// are push-buttons (they travel with your fingertip); a desktop
+// click works too.
+AFRAME.registerComponent('press-button', {
+  schema: { action: { default: 'count' } },
+  init: function () {
+    this.n = 0;
+    this.colors = ['#ff9a1f', '#7fe0ff', '#ff8fc8', '#9be38b', '#ffffff'];
+    this.el.addEventListener('click', () => {
+      this.n++;
+      if (this.data.action === 'count') this.el.querySelector('a-text').setAttribute('value', String(this.n));
+      else document.querySelector('#lamp').setAttribute('material', 'emissive', this.colors[this.n % this.colors.length]);
+    });
+  }
+});
+
+// Lamp brightness from the slider
+AFRAME.registerComponent('lamp-dimmer', {
+  init: function () {
+    this.el.addEventListener('change', (e) => {
+      document.querySelector('#lamp').setAttribute('material', 'emissiveIntensity', 0.1 + e.detail.value * 1.4);
+    });
+  }
+});
+
+// Pose recorder: press Record with one hand, then hold a shape
+// with your RIGHT hand; after a 3 s countdown it's saved (in this
+// browser) as pose-1, pose-2, … Both hands then report the pose
+// they're making (recorded with the right hand, mirrored for the
+// left). Clear forgets them. The saved JSON is also printed to the
+// console, ready to paste into your own scene's define() calls.
+AFRAME.registerComponent('pose-recorder', {
+  init: function () {
+    this.sys = this.el.sceneEl.systems['hand-pose'];
+    this.readout = document.querySelector('#pose-readout');
+    this.countdown = 0;
+    this.load();
+    document.querySelector('#rec-btn').addEventListener('click', () => this.arm());
+    document.querySelector('#clear-btn').addEventListener('click', () => this.clear());
+    this.last = 0;
+  },
+  load: function () {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('hand-poses') || '{}'); } catch (e) { /* none */ }
+    for (const k in saved) this.sys.define(k, saved[k]);
+  },
+  save: function () {
+    const out = {};
+    for (const n of this.sys.names()) out[n] = { joints: Array.from(this.sys.poses.get(n).vec, (x) => Math.round(x * 1000) / 1000) };
+    try { localStorage.setItem('hand-poses', JSON.stringify(out)); } catch (e) { /* storage unavailable */ }
+    return out;
+  },
+  arm: function () {
+    if (this.countdown) return;
+    this.countdown = performance.now() + 3000;
+  },
+  clear: function () {
+    for (const n of this.sys.names()) this.sys.remove(n);
+    this.save();
+  },
+  tick: function (time) {
+    if (time - this.last < 100) return;
+    this.last = time;
+    let msg;
+    if (this.countdown) {
+      const left = Math.ceil((this.countdown - performance.now()) / 1000);
+      if (left > 0) msg = 'Hold a shape with your RIGHT hand... ' + left;
+      else {
+        this.countdown = 0;
+        const pose = this.sys.capture('right');
+        if (pose) {
+          const name = 'pose-' + (this.sys.names().length + 1);
+          this.sys.define(name, pose);
+          const all = this.save();
+          console.log('[pose-recorder] ' + name + ' = ' + JSON.stringify(all[name]));
+          this.flash = 'Saved ' + name; this.flashUntil = time + 1500;
+        } else { this.flash = 'Right hand not tracked: try again'; this.flashUntil = time + 1500; }
+      }
+    }
+    if (!msg) {
+      const names = this.sys.names();
+      const cur = (side) => {
+        for (const el of document.querySelectorAll('[hand-pose]')) {
+          const p = el.components['hand-pose'];
+          if (p && p.data.hand === side) return p.current || '-';
+        }
+        return '-';
+      };
+      msg = (this.flash && time < this.flashUntil) ? this.flash :
+        names.length ? 'Poses: ' + names.join(', ') + '\nleft: ' + cur('left') + '    right: ' + cur('right')
+                     : 'No poses yet: press Record, then hold a shape with your right hand';
+    }
+    this.readout.setAttribute('text', 'value', msg);
+  }
+});
+
+// Desktop: mouse cursor outside VR only
+AFRAME.registerComponent('desktop-cursor', {
+  init: function () {
+    const s = this.el;
+    const on = () => { s.setAttribute('raycaster', 'objects: .interactable'); s.setAttribute('cursor', 'rayOrigin: mouse; fuse: false'); };
+    const off = () => { s.removeAttribute('cursor'); s.removeAttribute('raycaster'); };
+    on();
+    s.addEventListener('enter-vr', off);
+    s.addEventListener('exit-vr', on);
+  }
+});
+
+// ?debug=1: per-hand readout below your view
+const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
+AFRAME.registerComponent('interaction-debug', {
+  init: function () {
+    if (!DEBUG) { this.el.setAttribute('visible', false); this.off = true; return; }
+    this.last = 0;
+    this.rigObj = document.querySelector('#rig').object3D;
+  },
+  tick: function (time) {
+    if (this.off || time - this.last < 150) return;
+    this.last = time;
+    const input = this.el.sceneEl.systems['hand-input'];
+    const f = (v) => (v === null || v === undefined ? '-' : v.toFixed(2));
+    const lines = [];
+    for (const el of document.querySelectorAll('[hand-tracking-controls]')) {
+      const side = el.getAttribute('hand-tracking-controls').hand;
+      const h = input && input.get(side, this.rigObj);
+      const p = el.components['hand-pointer'];
+      lines.push(side[0].toUpperCase() + '  ' + (h ? 'idx ' + f(h.straight('index')) + ' mid ' + f(h.straight('middle')) +
+        ' ring ' + f(h.straight('ring')) : 'not tracked') + (p ? ' | ptr ' + p.pState : ''));
+    }
+    this.el.setAttribute('text', 'value', lines.join('\n'));
+  }
+});
+
+// Wrist menu: shown while the left palm faces you (hand-joint's
+// palmup / palmdown); shows whether turning is on, and has a
+// restart-tutorial button you press with the other hand
+AFRAME.registerComponent('wrist-menu', {
+  init: function () {
+    this.items = Array.from(this.el.children);
+    const show = (on) => this.items.forEach((c) => c.setAttribute('visible', on));
+    show(false);
+    this.el.addEventListener('palmup', () => show(true));
+    this.el.addEventListener('palmdown', () => show(false));
+    this.status = this.el.querySelector('.status');
+    this.el.querySelector('.restart').addEventListener('click', () => {
+      const t = this.el.sceneEl.components['hand-tutorial'];
+      if (t) t.restart();
+    });
+    this.last = 0;
+  },
+  tick: function (time) {
+    if (time - this.last < 250) return;
+    this.last = time;
+    const tilt = this.el.sceneEl.systems['hand-thumb-tilt'];
+    const on = tilt && tilt.activeHand;
+    this.status.setAttribute('text', 'value', on ? 'Turning: ON (' + on + ' hand)' : 'Turning: off');
+  }
+});
+
+if (new URLSearchParams(location.search).get('tutorial') === 'reset') {
+  try { localStorage.removeItem('hand-tutorial-done'); } catch (e) { /* storage unavailable */ }
+}
+</script>
+</head>
+<body>
+<a-scene
+  desktop-cursor
+  hand-tutorial
+  webxr="optionalFeatures: local-floor, hand-tracking"
+  renderer="antialias: true; foveationLevel: 0"
+  xr-mode-ui="enabled: true"
+>
+  <!-- World: aframe-environment-component's classic default preset -->
+  <a-entity environment="preset: default"></a-entity>
+
+  <!-- Rig. Feedback is amber, a miss deep pink -->
+  <a-entity id="rig" movement-controls="fly: false; speed: 0.25; camera: #head">
+    <a-entity id="head" camera position="0 1.6 0" look-controls>
+      <a-entity interaction-debug position="0 -0.3 -0.75" rotation="-20 0 0"
+                geometry="primitive: plane; width: 0.7; height: 0.12"
+                material="shader: flat; color: #000; opacity: 0.6; transparent: true; fog: false"
+                text="value: ; align: left; width: 0.66; wrapCount: 60; color: #fff; xOffset: 0.02"></a-entity>
+    </a-entity>
+    <a-entity hand-tracking-controls="hand: left"
+              hand-teleport="hand: left; collisionEntities: .environmentGround, .landable; blockEntities: .no-landing; hitColor: #ff9a1f; missColor: #d81b60"
+              hand-pointer="hand: left; surfaces: .environmentGround, .landable, .no-landing; triggerCurl: 0.65; color: #ff9a1f"
+              hand-poke="hand: left" hand-grab="hand: left" hand-pose="hand: left"></a-entity>
+    <a-entity hand-tracking-controls="hand: right"
+              hand-thumb-tilt="hand: right; indicatorColor: #ff9a1f"
+              hand-pointer="hand: right; surfaces: .environmentGround, .landable, .no-landing; triggerCurl: 0.65; color: #ff9a1f"
+              hand-poke="hand: right" hand-grab="hand: right" hand-pose="hand: right"></a-entity>
+  </a-entity>
+
+  <!-- Wrist menu on the left hand: appears when the palm faces you -->
+  <a-entity wrist-menu hand-joint="hand: left; joint: wrist; offset: 0 -0.07 -0.02; faceHead: true; palmFacing: true">
+    <a-plane width="0.16" height="0.1" material="shader: flat; color: #11161d; opacity: 0.9; transparent: true"></a-plane>
+    <a-entity class="status" position="0 0.025 0.002" text="value: Turning: off; align: center; width: 0.15; wrapCount: 22; color: #ffffff"></a-entity>
+    <a-box class="interactable restart" position="0 -0.022 0.008" width="0.12" height="0.032" depth="0.012" color="#ff9a1f">
+      <a-entity position="0 0 0.007" text="value: Restart tutorial; align: center; width: 0.12; wrapCount: 18; color: #11161d"></a-entity>
+    </a-box>
+  </a-entity>
+
+  <!-- Teleport: two platforms, a pool you can't land in, a slope too steep -->
+  <a-box class="landable" position="2.5 0.2 -4" width="2" height="0.4" depth="2" material="color: #d9d9de; flatShading: true"></a-box>
+  <a-box class="landable" position="-2.6 0.5 -6" width="2" height="1" depth="2" material="color: #d9d9de; flatShading: true"></a-box>
+  <a-box class="landable" position="4.5 1 -8" rotation="0 -20 58" width="2.6" height="0.3" depth="1.6" material="color: #cfcfd6; flatShading: true"></a-box>
+  <a-cylinder id="pool" class="no-landing" position="0 0.02 -9" radius="2.2" height="0.04" segments-radial="8" material="color: #3e8fb0; flatShading: true"></a-cylinder>
+
+  <!-- Point + trigger: orbs past the pool, a crate to drag -->
+  <a-sphere class="interactable" toggle-glow position="-1.5 1.5 -12" radius="0.3" segments-width="8" segments-height="6" material="color: #f3eef6; flatShading: true"></a-sphere>
+  <a-sphere class="interactable" toggle-glow position="0 1.8 -12.5" radius="0.3" segments-width="8" segments-height="6" material="color: #f3eef6; flatShading: true"></a-sphere>
+  <a-sphere class="interactable" toggle-glow position="1.5 1.5 -12" radius="0.3" segments-width="8" segments-height="6" material="color: #f3eef6; flatShading: true"></a-sphere>
+  <a-box class="interactable" pointer-draggable position="-3 0.25 -2.5" width="0.5" height="0.5" depth="0.5" material="color: #b5835a; flatShading: true"></a-box>
+
+  <!-- The table: push-buttons, a slider, the pose recorder, blocks to grab -->
+  <a-entity pose-recorder position="0 0 -1.1">
+    <a-box position="0 0.4 0" width="1.3" height="0.8" depth="0.45" material="color: #d9d9de; flatShading: true"></a-box>
+
+    <!-- Push-buttons: they travel with your fingertip and click at the bottom -->
+    <a-cylinder class="interactable" push-button press-button="action: count" position="-0.52 0.815 0.08" radius="0.04" height="0.03" color="#6a4fb3">
+      <a-text value="0" position="0 0.016 0" rotation="-90 0 0" align="center" width="0.5" color="#fff"></a-text>
+    </a-cylinder>
+    <a-cylinder class="interactable" push-button press-button="action: color" position="-0.4 0.815 0.08" radius="0.04" height="0.03" color="#c8465f"></a-cylinder>
+    <a-text value="count     colour" position="-0.46 0.801 0.165" rotation="-90 0 0" align="center" width="0.45" color="#333"></a-text>
+
+    <!-- Slider: lamp brightness -->
+    <a-box position="-0.46 0.805 -0.13" width="0.26" height="0.01" depth="0.025" color="#9a9aa3"></a-box>
+    <a-box class="interactable" hand-slider="axis: x; length: 0.24; value: 0.5" lamp-dimmer position="-0.46 0.825 -0.13" width="0.03" height="0.03" depth="0.04" color="#ff9a1f"></a-box>
+    <a-text value="brightness" position="-0.46 0.801 -0.075" rotation="-90 0 0" align="center" width="0.4" color="#333"></a-text>
+    <a-octahedron id="lamp" position="-0.6 1.05 -0.17" radius="0.06" material="color: #fff; emissive: #ff9a1f; emissiveIntensity: 0.8; flatShading: true"></a-octahedron>
+
+    <!-- Pose recorder -->
+    <a-cylinder id="rec-btn" class="interactable" push-button position="-0.2 0.815 0.08" radius="0.04" height="0.03" color="#ff9a1f"></a-cylinder>
+    <a-cylinder id="clear-btn" class="interactable" push-button position="-0.08 0.815 0.08" radius="0.03" height="0.03" color="#777780"></a-cylinder>
+    <a-text value="record    clear" position="-0.14 0.801 0.165" rotation="-90 0 0" align="center" width="0.4" color="#333"></a-text>
+    <a-entity id="pose-readout" position="-0.1 1.22 -0.2" rotation="-15 0 0"
+              geometry="primitive: plane; width: 0.62; height: 0.13"
+              material="shader: flat; color: #11161d; opacity: 0.88; transparent: true"
+              text="value: ; align: center; width: 0.58; wrapCount: 40; color: #ffffff"></a-entity>
+
+    <!-- Blocks: open your hand, close it around one -->
+    <a-box class="grabbable" position="0.22 0.845 0.05" width="0.09" height="0.09" depth="0.09" color="#d6a531"></a-box>
+    <a-box class="grabbable" position="0.38 0.845 -0.07" width="0.09" height="0.09" depth="0.09" color="#2f8f88"></a-box>
+    <a-box class="grabbable" position="0.52 0.845 0.07" width="0.09" height="0.09" depth="0.09" color="#3f6fc8"></a-box>
+  </a-entity>
+</a-scene>
+</body>
+</html>
