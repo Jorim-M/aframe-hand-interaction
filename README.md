@@ -278,4 +278,4 @@ examples/   minimal.html, playground.html
 
 ## Licence
 
-[MIT](LICENSE) © 2026 Jorim M. Oduo (Beamport Story Labs)
+[MIT](LICENSE) © 2026 Jorim M. Oduo
